@@ -36,6 +36,8 @@ canvas#game { position: fixed; inset: 0; width: 100vw; height: 100vh; display: b
 .big-btn.show { background: #13b24b; }
 .big-btn.next { background: #13b24b; animation: pulse 1.2s ease-in-out infinite; }
 .big-btn.dice { background: #ff9f1c; font-size: 22px; }
+.big-btn.flash { background: #8a8f98; font-size: 22px; }
+.big-btn.flash.on { background: #ffd23f; color: #000; }
 .big-btn.red  { background: #ef3e4a; font-size: 22px; }
 .big-btn.blue { background: #2a5bd7; font-size: 22px; }
 @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.06); } }

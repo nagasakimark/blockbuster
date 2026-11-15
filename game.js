@@ -26,6 +26,10 @@
     points: 0,
     awarded: false,
     teams: false,
+    flash: false,             // flash mode on/off
+    flashHex: null,           // tile currently lit
+    flashTimer: 0,
+    flashPause: 0,            // short pause after a hit
     score: { red: 0, blue: 0 },
   };
 
@@ -55,24 +59,13 @@
     o.start(t); o.stop(t + dur + 0.02);
   }
   const sfx = {
+    tick()  { tone(1400, 1400, 0.03, "square", 0.035); },
     pop()   { const f = 500 + Math.random() * 300; tone(f, f * 2.2, 0.09, "sine", 0.3); tone(f * 0.5, 80, 0.12, "triangle", 0.15); },
     reveal(){ [523, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.22, "triangle", 0.18, i * 0.08)); },
     whoosh(){ tone(200, 900, 0.35, "sawtooth", 0.04); },
     point() { tone(880, 1320, 0.15, "square", 0.08); tone(1320, 1760, 0.2, "square", 0.06, 0.1); },
     fanfare(){ [523, 523, 523, 659, 784, 659, 784, 1047].forEach((f, i) => tone(f, f, 0.18, "triangle", 0.18, i * 0.12)); },
   };
-
-  function speak(text) {
-    if (!soundOn || !("speechSynthesis" in window)) return;
-    try {
-      speechSynthesis.cancel();
-      const u = new SpeechSynthesisUtterance(text);
-      u.lang = "en-US"; u.rate = 0.85;
-      const v = speechSynthesis.getVoices().find((v) => /en[-_]US/i.test(v.lang));
-      if (v) u.voice = v;
-      speechSynthesis.speak(u);
-    } catch (e) {}
-  }
 
   // ---------------------------------------------------------------- helpers
   const easeOutBack = (t) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2); };
@@ -182,6 +175,7 @@
   async function startSet(set) {
     game.set = set;
     game.teams = $("optTeams").checked;
+    setFlash($("optFlash").checked);
     game.order = set.items.map((_, i) => i);
     if ($("optShuffle").checked) shuffle(game.order);
     game.index = 0;
@@ -211,6 +205,7 @@
     $("btnNext").classList.add("hidden");
     $("award").classList.add("hidden");
     $("btnRandom").disabled = false;
+    game.flashHex = null; game.flashTimer = 0; game.flashPause = 0.4;
     $("btnPrev").style.visibility = game.index > 0 ? "visible" : "hidden";
   }
 
@@ -241,6 +236,39 @@
     popHex(pool[(Math.random() * pool.length) | 0]);
   }
 
+  // ---- flash mode
+  const FLASH_SPEED = 0.09;   // seconds each tile stays lit
+  function flashPool() {
+    const list = hexes.filter((h) => h.state === "covered" && h.x > R * 0.3 && h.x < W - R * 0.3 && h.y > R * 0.3 && h.y < H - R * 0.3);
+    return list.length ? list : hexes.filter((h) => h.state === "covered");
+  }
+  function setFlash(on) {
+    game.flash = on;
+    game.flashHex = null; game.flashTimer = 0; game.flashPause = 0.3;
+    $("btnFlash").classList.toggle("on", on);
+    $("btnRandom").classList.toggle("hidden", on);
+  }
+  function flashActive() { return game.flash && game.mode === "play" && !game.revealed && !game.transitioning; }
+  function updateFlash(dt) {
+    if (!flashActive()) { game.flashHex = null; return; }
+    if (game.flashPause > 0) { game.flashPause -= dt; game.flashHex = null; return; }
+    game.flashTimer -= dt;
+    if (game.flashTimer > 0 && game.flashHex && game.flashHex.state === "covered") return;
+    const pool = flashPool();
+    if (!pool.length) { game.flashHex = null; return; }
+    let h = pool[(Math.random() * pool.length) | 0];
+    if (pool.length > 1) while (h === game.flashHex) h = pool[(Math.random() * pool.length) | 0];
+    game.flashHex = h;
+    game.flashTimer = FLASH_SPEED;
+    sfx.tick();
+  }
+  function hitFlash() {
+    if (!flashActive() || !game.flashHex) return;
+    popHex(game.flashHex);
+    game.flashHex = null;
+    game.flashPause = 0.6; // give everyone a moment to look
+  }
+
   function showAnswer() {
     if (game.mode !== "play" || game.revealed || game.transitioning) return;
     game.revealed = true;
@@ -257,11 +285,11 @@
     setTimeout(() => {
       sfx.reveal();
       confetti(W / 2, H * 0.12);
-      speak(item.say || item.word.replace("/", ", "));
     }, 450);
     $("btnShow").classList.add("hidden");
     $("btnNext").classList.remove("hidden");
     $("btnRandom").disabled = true;
+    game.flashHex = null;
     if (game.teams) {
       document.querySelectorAll("#award .pts").forEach((el) => (el.textContent = game.points));
       $("award").classList.remove("hidden");
@@ -329,7 +357,6 @@
   }
 
   function goHome() {
-    speechSynthesis && speechSynthesis.cancel();
     game.mode = "title";
     game.label = null;
     $("hud").classList.add("hidden");
@@ -352,6 +379,7 @@
 
   // ---------------------------------------------------------------- update / draw
   function update(dt) {
+    updateFlash(dt);
     for (const h of hexes) {
       if (h.delay > 0) { h.delay -= dt; continue; }
       if (h.state === "waiting") { h.state = "covered"; popHex(h, Math.random() > 0.25); continue; }
@@ -372,14 +400,17 @@
     ctx.globalAlpha = alpha;
     ctx.translate(h.x, h.y);
     ctx.rotate(rot);
-    const hover = h === hoverHex && game.mode === "play" && !game.revealed;
+    const lit = h === game.flashHex;
+    const hover = !game.flash && h === hoverHex && game.mode === "play" && !game.revealed;
     // body gradient
     const grad = ctx.createLinearGradient(0, -r, 0, r);
-    const light = hover ? "#6cc0ff" : "#3aa3f5";
-    const dark = hover ? "#2a95ec" : (h.shade > 0.5 ? "#1a7fd6" : "#1c87e0");
-    grad.addColorStop(0, light); grad.addColorStop(0.55, dark); grad.addColorStop(1, "#1467b5");
+    const light = lit ? "#fff59a" : hover ? "#6cc0ff" : "#3aa3f5";
+    const dark = lit ? "#ffd23f" : hover ? "#2a95ec" : (h.shade > 0.5 ? "#1a7fd6" : "#1c87e0");
+    grad.addColorStop(0, light); grad.addColorStop(0.55, dark); grad.addColorStop(1, lit ? "#f5a300" : "#1467b5");
+    if (lit) { ctx.shadowColor = "#fff27a"; ctx.shadowBlur = R * 0.6; }
     hexPath(0, 0, r);
     ctx.fillStyle = grad; ctx.fill();
+    ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
     // inner bevel shine
     hexPath(0, -r * 0.04, r * 0.78);
     ctx.strokeStyle = "rgba(255,255,255,.18)"; ctx.lineWidth = r * 0.05; ctx.stroke();
@@ -400,7 +431,8 @@
     for (const h of hexes) {
       if (h.state === "gone") continue;
       if (h.state === "covered" || h.state === "waiting") {
-        const s = h === hoverHex && game.mode === "play" && !game.revealed ? 1.04 : 1;
+        if (h === game.flashHex) continue; // drawn last, on top
+        const s = !game.flash && h === hoverHex && game.mode === "play" && !game.revealed ? 1.04 : 1;
         drawTile(h, s, 1, 0);
       } else if (h.state === "popping") {
         const t = h.t;
@@ -411,6 +443,8 @@
         drawTile(h, easeOutBack(t), Math.min(1, t * 2), (1 - t) * 0.5);
       }
     }
+
+    if (game.flashHex) drawTile(game.flashHex, 1.08, 1, 0);
 
     // particles
     for (const p of particles) {
@@ -459,6 +493,7 @@
 
   canvas.addEventListener("pointerdown", (e) => {
     if (game.mode !== "play" || game.revealed || game.transitioning) return;
+    if (game.flash) return hitFlash(); // click anywhere hits the lit tile
     const [x, y] = pointerPos(e);
     const h = hexAt(x, y);
     if (h) popHex(h);
@@ -466,13 +501,15 @@
   canvas.addEventListener("pointermove", (e) => {
     const [x, y] = pointerPos(e);
     hoverHex = game.mode === "play" ? hexAt(x, y) : null;
-    canvas.style.cursor = hoverHex && !game.revealed ? "pointer" : "default";
+    canvas.style.cursor = game.flash && !game.revealed ? "crosshair" : hoverHex && !game.revealed ? "pointer" : "default";
   });
   canvas.addEventListener("pointerleave", () => (hoverHex = null));
 
   window.addEventListener("keydown", (e) => {
     if (game.mode !== "play") return;
-    if (e.key === " " || e.key === "Enter") { e.preventDefault(); game.revealed ? next() : showAnswer(); }
+    if (e.key === " " && flashActive()) { e.preventDefault(); hitFlash(); }
+    else if (e.key === " " || e.key === "Enter") { e.preventDefault(); game.revealed ? next() : showAnswer(); }
+    else if (e.key.toLowerCase() === "f") setFlash(!game.flash);
     else if (e.key === "ArrowRight") next();
     else if (e.key === "ArrowLeft") prev();
     else if (e.key.toLowerCase() === "r") randomTile();
@@ -484,6 +521,7 @@
   $("btnNext").onclick = next;
   $("btnPrev").onclick = prev;
   $("btnRandom").onclick = randomTile;
+  $("btnFlash").onclick = () => setFlash(!game.flash);
   $("btnAwardRed").onclick = () => award("red");
   $("btnAwardBlue").onclick = () => award("blue");
   $("btnHome").onclick = goHome;
@@ -492,7 +530,6 @@
   $("btnSound").onclick = () => {
     soundOn = !soundOn;
     $("btnSound").textContent = soundOn ? "🔊" : "🔇";
-    if (!soundOn && "speechSynthesis" in window) speechSynthesis.cancel();
   };
   $("btnFull").onclick = () => {
     if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
@@ -518,7 +555,6 @@
   }
 
   window.addEventListener("resize", resize);
-  if ("speechSynthesis" in window) speechSynthesis.getVoices();
   resize();
   hexes.forEach((h) => (h.state = "covered"));
   buildSetList();
