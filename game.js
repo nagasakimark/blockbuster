@@ -404,10 +404,9 @@
     const hover = !game.flash && h === hoverHex && game.mode === "play" && !game.revealed;
     // body gradient
     const grad = ctx.createLinearGradient(0, -r, 0, r);
-    const light = lit ? "#fff59a" : hover ? "#6cc0ff" : "#3aa3f5";
-    const dark = lit ? "#ffd23f" : hover ? "#2a95ec" : (h.shade > 0.5 ? "#1a7fd6" : "#1c87e0");
-    grad.addColorStop(0, light); grad.addColorStop(0.55, dark); grad.addColorStop(1, lit ? "#f5a300" : "#1467b5");
-    if (lit) { ctx.shadowColor = "#fff27a"; ctx.shadowBlur = R * 0.6; }
+    const light = lit ? "#cfe9ff" : hover ? "#6cc0ff" : "#3aa3f5";
+    const dark = lit ? "#9fd2fb" : hover ? "#2a95ec" : (h.shade > 0.5 ? "#1a7fd6" : "#1c87e0");
+    grad.addColorStop(0, light); grad.addColorStop(0.55, dark); grad.addColorStop(1, lit ? "#7dbcf0" : "#1467b5");
     hexPath(0, 0, r);
     ctx.fillStyle = grad; ctx.fill();
     ctx.shadowBlur = 0; ctx.shadowColor = "transparent";
@@ -444,7 +443,7 @@
       }
     }
 
-    if (game.flashHex) drawTile(game.flashHex, 1.08, 1, 0);
+    if (game.flashHex) drawTile(game.flashHex, 1, 1, 0);
 
     // particles
     for (const p of particles) {
