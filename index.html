@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blockbuster – Picture Reveal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=M+PLUS+Rounded+1c:wght@700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<!-- In-game HUD -->
+<div id="hud" class="hidden">
+  <div class="hud-top-left">
+    <button class="icon-btn" id="btnHome" title="Home">🏠</button>
+    <div class="pill" id="roundPill">1 / 14</div>
+  </div>
+  <div class="hud-top-right">
+    <div id="teamScores" class="hidden">
+      <div class="score red"><span class="team-name">RED</span><span id="scoreRed">0</span></div>
+      <div class="score blue"><span class="team-name">BLUE</span><span id="scoreBlue">0</span></div>
+    </div>
+    <button class="icon-btn" id="btnSound" title="Sound">🔊</button>
+    <button class="icon-btn" id="btnFull" title="Fullscreen">⛶</button>
+  </div>
+  <div class="hud-bottom-left">
+    <button class="icon-btn" id="btnPrev" title="Back (←)">◀</button>
+    <button class="big-btn dice" id="btnRandom" title="Random tile (R)">🎲 <span>Random</span></button>
+  </div>
+  <div class="hud-bottom-right">
+    <div id="award" class="hidden">
+      <button class="big-btn red" id="btnAwardRed">RED +<span class="pts">0</span></button>
+      <button class="big-btn blue" id="btnAwardBlue">BLUE +<span class="pts">0</span></button>
+    </div>
+    <button class="big-btn show" id="btnShow">SHOW</button>
+    <button class="big-btn next hidden" id="btnNext">NEXT ▶</button>
+  </div>
+</div>
+
+<!-- Title screen -->
+<div id="title" class="screen">
+  <div class="card">
+    <h1 class="logo"><span>B</span><span>L</span><span>O</span><span>C</span><span>K</span><span>B</span><span>U</span><span>S</span><span>T</span><span>E</span><span>R</span></h1>
+    <p class="sub">Tap the blocks. Guess the picture!</p>
+    <p class="sub ja">ブロックを タップして、えを あてよう！</p>
+    <div id="setList" class="set-list"></div>
+    <div class="options">
+      <label class="toggle"><input type="checkbox" id="optShuffle"><span>🔀 Shuffle <small>シャッフル</small></span></label>
+      <label class="toggle"><input type="checkbox" id="optTeams"><span>🏆 Teams <small>チーム</small></span></label>
+    </div>
+    <div id="loading" class="loading hidden">Loading… <span id="loadPct">0%</span></div>
+  </div>
+</div>
+
+<!-- End screen -->
+<div id="end" class="screen hidden">
+  <div class="card">
+    <h2 class="great">Great job!</h2>
+    <p class="sub ja">よく できました！</p>
+    <div id="endScores" class="end-scores hidden"></div>
+    <div class="end-buttons">
+      <button class="big-btn show" id="btnAgain">🔁 Play again</button>
+      <button class="big-btn dice" id="btnMenu">🏠 Menu</button>
+    </div>
+  </div>
+</div>
+
+<script src="data.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
